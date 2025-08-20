@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decoder-bench"
+version = "0.1.0"
+description = "A comprehensive benchmarking suite for quantum error correction decoders"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Decoder Bench Contributors", email = ""}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Quantum Physics",
+    "Topic :: Scientific/Engineering :: Computer Architecture",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "attrs>=25.3.0",
+    "certifi>=2025.4.26",
+    "charset-normalizer>=3.4.1",
+    "click>=8.1.8",
+    "contourpy>=1.3.0",
+    "cycler>=0.12.1",
+    "dataclasses>=0.6",
+    "exceptiongroup>=1.2.2",
+    "filelock>=3.18.0",
+    "fonttools>=4.57.0",
+    "h5py>=3.13.0",
+    "idna>=3.10",
+    "igraph>=0.11.8",
+    "importlib_resources>=6.5.2",
+    "iniconfig>=2.1.0",
+    "jsonschema>=4.23.0",
+    "jsonschema-specifications>=2025.4.1",
+    "kiwisolver>=1.4.7",
+    "ldpc>=2.3.4",
+    "matplotlib>=3.9.4",
+    "msgpack>=1.1.0",
+    "networkx>=3.2.1",
+    "numpy>=1.25.0",
+    "packaging>=25.0",
+    "pandas>=2.2.3",
+    "pillow>=11.2.1",
+    "pluggy>=1.5.0",
+    "protobuf>=6.30.2",
+    "PyMatching>=2.2.2",
+    "pyparsing>=3.2.3",
+    "pytest>=8.3.5",
+    "python-dateutil>=2.9.0.post0",
+    "pytz>=2025.2",
+    "PyYAML>=6.0.2",
+    "ray>=2.45.0",
+    "referencing>=0.36.2",
+    "requests>=2.32.3",
+    "rpds-py>=0.24.0",
+    "scipy>=1.13.1",
+    "seaborn>=0.13.2",
+    "sinter>=1.14.0",
+    "six>=1.17.0",
+    "stim>=1.14.0",
+    "texttable>=1.7.0",
+    "tomli>=2.2.1",
+    "tqdm>=4.67.1",
+    "typing_extensions>=4.13.2",
+    "tzdata>=2025.2",
+    "urllib3>=2.4.0",
+    "zipp>=3.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.5",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/decoder-bench"
+Repository = "https://github.com/yourusername/decoder-bench"
+Documentation = "https://github.com/yourusername/decoder-bench"
+Issues = "https://github.com/yourusername/decoder-bench/issues"
+
+[project.scripts]
+decoder-bench-generate = "decoder_bench.generator:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["decoder_bench*"]
