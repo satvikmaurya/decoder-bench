@@ -116,7 +116,7 @@ class DatasetGen(CompressedBinaryArrayStore):
                 if success:
                     observables.append(obs[i])
                     syndromes.append(det)
-                    if total_saved + len(syndromes) == num_records:
+                    if total_saved + len(syndromes) >= num_records:
                         if os.path.exists(f'{self.name}.h5'):
                             with h5py.File(f'{self.name}.h5', 'a') as file:
                                 all_syndromes.extend(syndromes)
