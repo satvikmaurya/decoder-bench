@@ -3,7 +3,7 @@ try:
 except ImportError:
     from sampler import Decoder, DecoderRegistry, DecoderState
 import numpy as np
-from scipy.sparse import csr_matrix, csc_matrix
+from scipy.sparse import csr_matrix
 
 @DecoderRegistry.register(name="belieffind")
 class BeliefFindDecoderImpl(Decoder):
@@ -156,9 +156,9 @@ class MWPFDecoderImpl(Decoder):
         import mwpf
         self.decoder.solve(mwpf.SyndromePattern(np.where(syndrome)[0]))
         err_idx = self.decoder.subgraph()
-        pred_errs = csc_matrix((np.ones(len(err_idx)), err_idx, [0, len(err_idx)]), shape=(len(err_idx), 1))
+        prediction = np.array([1 if i in err_idx else 0 for i in range(self.obs_matrix.shape[1])])
         self.decoder.clear()
-        return pred_errs.toarray()
+        return prediction
     
     def verify(self, prediction: np.ndarray, observable: np.ndarray) -> bool:
         """Verify if the prediction matches the observable"""
