@@ -123,4 +123,45 @@ class RelayBPDecoderImpl(Decoder):
         """Verify if the prediction matches the observable"""
         error_prediction = (self.obs_matrix.toarray() @ prediction) % 2
         return not np.any((error_prediction + observable) % 2)
+
+@DecoderRegistry.register(name="mwpf")
+class MWPFDecoderImpl(Decoder):
+    """Minimum-Weight Parity Factor Decoder (MWPF) decoder implementation"""
+    
+    def __init__(self, state: DecoderState, **kwargs):
+        """
+        Initialize the MWPF decoder
+        decoder kwargs:
+           - cluster_node_limit 
+           - timeout
+        """
+        import mwpf
+        decoder_config = {
+            "cluster_node_limit":  kwargs.get('cluster_node_limit', 50),  
+            "timeout": kwargs.get('timeout', 3.0),  
+        }
+        weighted_edges: list[mwpf.HyperEdge] = [
+            mwpf.HyperEdge(
+                state.check_matrix.getcol(i).nonzero()[0],
+                int(np.log((1 - state.priors[i])/state.priors[i]))
+            )
+            for i in range(state.check_matrix.shape[1])
+        ]
+        self.decoder = mwpf.SolverSerialJointSingleHair(mwpf.SolverInitializer(state.check_matrix.shape[0], weighted_edges),
+                                                        decoder_config)
+        self.obs_matrix = state.obs_matrix
+        
+    def decode(self, syndrome: np.ndarray) -> np.ndarray:
+        """Decode a single syndrome"""
+        import mwpf
+        self.decoder.solve(mwpf.SyndromePattern(np.where(syndrome)[0]))
+        err_idx = self.decoder.subgraph()
+        prediction = np.array([1 if i in err_idx else 0 for i in range(self.obs_matrix.shape[1])])
+        self.decoder.clear()
+        return prediction
+    
+    def verify(self, prediction: np.ndarray, observable: np.ndarray) -> bool:
+        """Verify if the prediction matches the observable"""
+        error_prediction = (self.obs_matrix.toarray() @ prediction) % 2
+        return not np.any((error_prediction + observable) % 2)
         
