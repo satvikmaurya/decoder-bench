@@ -113,11 +113,11 @@ class RelayBPDecoderImpl(Decoder):
         
     def decode(self, syndrome: np.ndarray) -> np.ndarray:
         """Decode a single syndrome"""
-        return self.decoder.decode(syndrome)
+        return self.decoder.decode(syndrome.astype(np.uint8))
     
     def decode_batch(self, syndromes: np.ndarray) -> list:
         """Decode a batch of syndromes"""
-        return self.decoder.decode_batch(syndromes)
+        return self.decoder.decode_batch(syndromes.astype(np.uint8))
     
     def verify(self, prediction: np.ndarray, observable: np.ndarray) -> bool:
         """Verify if the prediction matches the observable"""

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 dataset_dir="../datasets"
-num_shots=1000000
+num_shots=5000000
 batch_size=1000
 output_file="./results/benchmark_results.csv"
 
@@ -51,6 +51,8 @@ for p in $color_p_values; do
     if [ -f "$dataset_dir/$filename" ]; then
         run_benchmark "$filename" "belieffind" ""
         run_benchmark "$filename" "bplsd" ""
+        run_benchmark "$filename" "mwpf" ""
+        run_benchmark "$filename" "relay-bp" ""
     fi
 done
 
@@ -59,6 +61,8 @@ for p in $surface7_p_values; do
     if [ -f "$dataset_dir/$filename" ]; then
         run_benchmark "$filename" "pymatching" ""
         run_benchmark "$filename" "belieffind" ""
+        run_benchmark "$filename" "mwpf" ""
+        run_benchmark "$filename" "relay-bp" ""
     fi
 done
 
@@ -67,6 +71,8 @@ for p in $surface11_p_values; do
     if [ -f "$dataset_dir/$filename" ]; then
         run_benchmark "$filename" "pymatching" ""
         run_benchmark "$filename" "belieffind" ""
+        run_benchmark "$filename" "mwpf" ""
+        run_benchmark "$filename" "relay-bp" ""
     fi
 done
 
@@ -75,6 +81,8 @@ for p in $qldpc6_p_values; do
     if [ -f "$dataset_dir/$filename" ]; then
         run_benchmark "$filename" "belieffind" ""
         run_benchmark "$filename" "bplsd" ""
+        run_benchmark "$filename" "mwpf" ""
+        run_benchmark "$filename" "relay-bp" ""
     fi
 done
 
@@ -83,6 +91,8 @@ for p in $qldpc12_p_values; do
     if [ -f "$dataset_dir/$filename" ]; then
         run_benchmark "$filename" "belieffind" ""
         run_benchmark "$filename" "bplsd" ""
+        run_benchmark "$filename" "mwpf" ""
+        run_benchmark "$filename" "relay-bp" ""
     fi
 done
 
@@ -90,7 +100,8 @@ for p in $ls11_p_values; do
     filename="ls_circuit_11_${p}_z.h5"
     if [ -f "$dataset_dir/$filename" ]; then
         run_benchmark "$filename" "pymatching" ""
-        run_benchmark "$filename" "belieffind" ""
+        run_benchmark "$filename" "mwpf" ""
+        run_benchmark "$filename" "relay-bp" ""
     fi
 done
 
