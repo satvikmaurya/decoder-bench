@@ -99,10 +99,33 @@ class DatasetGen(CompressedBinaryArrayStore):
         print(f"  Matchable circuit: {self.matchable}")
         
         m, n = self.H.shape
+        
+        if not store_unique:
+            sampler = self.circuit.compile_detector_sampler(seed=42)
+            dets, obs = sampler.sample(shots=num_records, bit_packed=False, separate_observables=True)
+            with h5py.File(f'{self.name}.h5', 'w') as file:
+                file.create_dataset('syndromes', 
+                                    data=dets, 
+                                    dtype=np.bool_, 
+                                    compression='gzip',
+                                    shape=(len(dets), m),
+                                    maxshape=(None, m))
+                file.create_dataset('observables', 
+                                    data=obs, 
+                                    dtype=np.bool_, 
+                                    compression='gzip',
+                                    shape=(len(obs), len(obs[0])),
+                                    maxshape=(None, len(obs[0])))
+                file.create_dataset('check_matrix', data=self.H.astype(np.uint8), dtype=np.uint8, compression='gzip')
+                file.create_dataset('obs_matrix', data=self.obs.astype(np.uint8), dtype=np.uint8, compression='gzip')
+                file.create_dataset('priors', data=self.priors, dtype=float, compression='gzip')
+                file.create_dataset('circuit', data=str(self.circuit), dtype=h5py.string_dtype(encoding='utf-8'))
+            return
+        
         iterations = 0
         total_saved = 0
-        all_syndromes = []
-        while len(all_syndromes) + total_saved < num_records and iterations < max_iterations:
+        all_syndromes = 0
+        while all_syndromes + total_saved < num_records and iterations < max_iterations:
             print('')
             sampler = self.circuit.compile_detector_sampler(seed=iterations + 42)
             dets, obs = sampler.sample(shots=1_000_000, bit_packed=False, separate_observables=True)
@@ -111,15 +134,13 @@ class DatasetGen(CompressedBinaryArrayStore):
             for i, det in enumerate(dets):
                 print(f"Iterations: {iterations}, Collected syndromes: {len(self) + total_saved}, Target: {num_records}, Max. iterations: {max_iterations}, Collected this itr:{len(syndromes)},  idx:{i}", end='\r')
                 success = self.add_array(det) # will store the array, or not
-                if not store_unique:
-                    success = True
                 if success:
                     observables.append(obs[i])
                     syndromes.append(det)
-                    if total_saved + len(syndromes) >= num_records:
+                    if total_saved + len(syndromes) == num_records:
                         if os.path.exists(f'{self.name}.h5'):
                             with h5py.File(f'{self.name}.h5', 'a') as file:
-                                all_syndromes.extend(syndromes)
+                                all_syndromes += len(syndromes)
                                 file['syndromes'].resize((len(file['syndromes']) + len(syndromes), m))
                                 file['syndromes'][-len(syndromes):] = syndromes
                                 file['observables'].resize((len(file['observables']) + len(observables), len(observables[0])))
@@ -128,7 +149,7 @@ class DatasetGen(CompressedBinaryArrayStore):
                                 self.compressed_arrays = []
                         else:
                             with h5py.File(f'{self.name}.h5', 'w') as file:
-                                all_syndromes.extend(syndromes)
+                                all_syndromes += len(syndromes)
                                 file.create_dataset('syndromes', 
                                                     data=syndromes, 
                                                     dtype=np.bool_, 
@@ -153,7 +174,7 @@ class DatasetGen(CompressedBinaryArrayStore):
                 pass
             if iterations == 0:
                 with h5py.File(f'{self.name}.h5', 'w') as file:
-                    all_syndromes.extend(syndromes)
+                    all_syndromes += len(syndromes)
                     file.create_dataset('syndromes', 
                                         data=syndromes, 
                                         dtype=np.bool_, 
@@ -174,7 +195,7 @@ class DatasetGen(CompressedBinaryArrayStore):
                     self.compressed_arrays = []
             else:
                 with h5py.File(f'{self.name}.h5', 'a') as file:
-                    all_syndromes.extend(syndromes)
+                    all_syndromes += len(syndromes)
                     file['syndromes'].resize((len(file['syndromes']) + len(syndromes), m))
                     file['syndromes'][-len(syndromes):] = syndromes
                     file['observables'].resize((len(file['observables']) + len(observables), len(observables[0])))

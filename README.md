@@ -38,7 +38,7 @@ Premade datasets generated using `decoder-bench` for different QEC codes and use
 ### Option 1: Install as a Package (Recommended)
 
 ```bash
-git clone https://github.com/yourusername/decoder-bench.git
+git clone https://github.com/satvikmaurya/decoder-bench.git
 cd decoder-bench
 pip install -e .
 ```
@@ -46,7 +46,7 @@ pip install -e .
 ### Option 2: Manual Installation
 
 ```bash
-git clone https://github.com/yourusername/decoder-bench.git
+git clone https://github.com/satvikmaurya/decoder-bench.git
 cd decoder-bench
 pip install -r requirements.txt
 ```
@@ -237,7 +237,7 @@ If you use decoder-bench in your research, please cite:
 @software{decoder_bench,
   title={decoder-bench: A Comprehensive Benchmarking Suite for Quantum Error Correction Decoders},
   author={Decoder Bench Contributors},
-  url={https://github.com/yourusername/decoder-bench},
+  url={https://github.com/satvikmaurya/decoder-bench},
   year={2025}
 }
 ```

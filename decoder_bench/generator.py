@@ -22,7 +22,7 @@ from typing import Tuple
 # num_records = 50_000_000
 # output_dir = '.'
 
-def generate(circuit:stim.Circuit, name:str, max_iterations:int=100, num_records:int=50_000_000) -> None:
+def generate(circuit:stim.Circuit, name:str, max_iterations:int=100, num_records:int=50_000_000, store_unique:bool=True) -> None:
     """
     Generate syndromes for a given circuit and save to a file.
     
@@ -33,7 +33,7 @@ def generate(circuit:stim.Circuit, name:str, max_iterations:int=100, num_records
         num_records (int): Number of records to generate.
     """
     generator = DatasetGen(circuit, name=name)
-    generator.gen_syndromes(max_iterations=max_iterations, num_records=num_records)
+    generator.gen_syndromes(max_iterations=max_iterations, num_records=num_records, store_unique=store_unique)
     return
 
 # Circuit generators
@@ -165,6 +165,7 @@ def main():
                         help='Number of records to generate (default: 50,000,000)')
     parser.add_argument('--output-dir', type=str, default='../datasets',
                         help='Directory to save output files')
+    parser.add_argument('--store_unique', type=bool, default=True, help='Store only unique syndromes (default: True)')
     
     args = parser.parse_args()
     
@@ -179,43 +180,45 @@ def main():
     num_records = args.records
     global output_dir
     output_dir = args.output_dir
-    
+    global store_unique
+    store_unique = args.store_unique
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
     if code == 'surface':
         if noise_model == 'circuit':
             circuit = gen_surface_circuit((distance, depolarization, basis))
-            generate(circuit, f'{output_dir}/surface_circuit_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/surface_circuit_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
         elif noise_model == 'phenom':
             circuit = gen_surface_phenom((distance, depolarization, basis))
-            generate(circuit, f'{output_dir}/surface_phenom_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/surface_phenom_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
         elif noise_model == 'code_capacity':
             circuit = gen_surface_code_capacity((distance, depolarization, basis))
-            generate(circuit, f'{output_dir}/surface_code_capacity_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/surface_code_capacity_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
     elif code == 'qldpc':
         if noise_model == 'circuit':
             circuit = gen_qldpc_circuit((distance, depolarization, basis))
-            generate(circuit, f'{output_dir}/qldpc_circuit_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/qldpc_circuit_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
         elif noise_model == 'phenom':
             circuit = gen_qldpc_phenom((distance, depolarization, basis))
-            generate(circuit, f'{output_dir}/qldpc_phenom_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/qldpc_phenom_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
         elif noise_model == 'code_capacity':
             circuit = gen_qldpc_code_capacity((distance, depolarization, basis))
-            generate(circuit, f'{output_dir}/qldpc_code_capacity_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/qldpc_code_capacity_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
     elif code == 'color':
         if noise_model == 'circuit':
             circuit = gen_color_circuit((distance, depolarization))
-            generate(circuit, f'{output_dir}/color_circuit_{distance}_{depolarization}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/color_circuit_{distance}_{depolarization}', max_iterations, num_records, store_unique)
         elif noise_model == 'phenom':
             circuit = gen_color_phenom((distance, depolarization))
-            generate(circuit, f'{output_dir}/color_phenom_{distance}_{depolarization}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/color_phenom_{distance}_{depolarization}', max_iterations, num_records, store_unique)
         elif noise_model == 'code_capacity':
             circuit = gen_color_code_capacity((distance, depolarization))
-            generate(circuit, f'{output_dir}/color_code_capacity_{distance}_{depolarization}', max_iterations, num_records)
+            generate(circuit, f'{output_dir}/color_code_capacity_{distance}_{depolarization}', max_iterations, num_records, store_unique)
     elif code == 'ls':
         circuit = gen_lattice_surgery_circuit((distance, depolarization, basis))
-        generate(circuit, f'{output_dir}/ls_circuit_{distance}_{depolarization}_{basis}', max_iterations, num_records)
+        generate(circuit, f'{output_dir}/ls_circuit_{distance}_{depolarization}_{basis}', max_iterations, num_records, store_unique)
     else:
         raise ValueError('How did you get here?')
 

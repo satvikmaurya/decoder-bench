@@ -86,10 +86,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/decoder-bench"
-Repository = "https://github.com/yourusername/decoder-bench"
-Documentation = "https://github.com/yourusername/decoder-bench"
-Issues = "https://github.com/yourusername/decoder-bench/issues"
+Homepage = "https://github.com/satvikmaurya/decoder-bench"
+Repository = "https://github.com/satvikmaurya/decoder-bench"
+Documentation = "https://github.com/satvikmaurya/decoder-bench"
+Issues = "https://github.com/satvikmaurya/decoder-bench/issues"
 
 [project.scripts]
 decoder-bench-generate = "decoder_bench.generator:main"
