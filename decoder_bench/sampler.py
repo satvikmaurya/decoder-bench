@@ -9,7 +9,11 @@ import stim
 from tqdm.auto import tqdm
 from multiprocessing.pool import ThreadPool
 from abc import ABC, abstractmethod
-from common.build_circuit import dem_to_check_matrices
+
+try:
+    from .common.build_circuit import dem_to_check_matrices
+except ImportError:
+    from common.build_circuit import dem_to_check_matrices
 
 @dataclass
 class ChunkTask:
