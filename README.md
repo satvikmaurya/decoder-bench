@@ -38,9 +38,7 @@ Premade datasets generated using `decoder-bench` for different QEC codes and use
 ### Option 1: Install as a Package (Recommended)
 
 ```bash
-git clone https://github.com/satvikmaurya/decoder-bench.git
-cd decoder-bench
-pip install -e .
+pip install git+https://github.com/satvikmaurya/decoder-bench.git
 ```
 
 ### Option 2: Manual Installation
@@ -48,12 +46,12 @@ pip install -e .
 ```bash
 git clone https://github.com/satvikmaurya/decoder-bench.git
 cd decoder-bench
-pip install -r requirements.txt
+pip install .
 ```
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Required packages are automatically installed with pip install
 
 ## Quick Start
