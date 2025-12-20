@@ -4,9 +4,12 @@ import numpy as np
 import stim
 from dataclasses import dataclass
 from scipy.optimize import curve_fit
-from math import comb
 from typing import List, Dict
-import matplotlib.pyplot as plt
+from scipy.special import gammaln, logsumexp
+import argparse
+import json
+import os
+import csv
 try:
     from .sampler import DecoderRegistry, DecoderState
     from .generator import (gen_qldpc_circuit, 
@@ -102,8 +105,9 @@ class RareEventSimulator:
         self.K = self.A.shape[0]
         self.a = 1 - 2**(-self.K)
         
-        self.num_trials_per_w = kwargs.get('num_trials_per_w', 10_000)
+        self.num_trials_per_weight = kwargs.get('num_trials_per_weight', 10_000)
         self.weights = kwargs.get('weights', list(np.arange(d, 20 * d, 10)))
+        self.w0 = kwargs.get('w0', int(np.ceil(d / 2)) - 1)
         pass
     
     def sample_fault_of_weight(self, w):
@@ -136,7 +140,7 @@ class RareEventSimulator:
     
     def is_failure(self, e):
         """
-        Test whether expanded fault e causes logical failure
+        Test whether compressed fault e causes logical failure
         """
         syndrome = self.model.H @ e % 2
         e_hat = self.decoder.decode(syndrome)
@@ -200,40 +204,132 @@ class RareEventSimulator:
 
     def logical_error_rate(self, p, ansatz_params, w_max=None):
         """
-        Compute P(p) using fitted f(w)
+        Compute P(p) using fitted f(w), numerically stable.
         """
         q = p / self.b
+        N = self.N_expanded
+
         if w_max is None:
             w_max = int(ansatz_params["wc"] * 5)
 
-        P = 0.0
-        for w in range(ansatz_params["w0"], w_max):
-            f_w = failure_spectrum_ansatz(
-                w,
-                **ansatz_params
-            )
-            P += f_w * comb(self.N_expanded, w) * (q**w) * ((1 - q)**(self.N_expanded - w))
+        log_terms = []
 
-        return P
+        for w in range(ansatz_params["w0"], w_max):
+            f_w = failure_spectrum_ansatz(w, **ansatz_params)
+            if f_w <= 0:
+                continue
+
+            log_binom = (
+                gammaln(N + 1)
+                - gammaln(w + 1)
+                - gammaln(N - w + 1)
+            )
+
+            log_term = (
+                np.log(f_w)
+                + log_binom
+                + w * np.log(q)
+                + (N - w) * np.log1p(-q)
+            )
+
+            log_terms.append(log_term)
+
+        if not log_terms:
+            return 0.0
+
+        return float(np.exp(logsumexp(log_terms)))
+
 
     def simulate(self, ps:List) -> Dict[float, float]:
         spectrum = self.estimate_failure_spectrum(self.weights, 
-                                                  {w:self.num_trials_per_w for w in self.weights})
-        print('Spectrum...')
-        params = self.fit_failure_spectrum(spectrum, self.d // 2)
+                                                  {w:self.num_trials_per_weight for w in self.weights})
+        params = self.fit_failure_spectrum(spectrum, self.w0)
         results = {}
         for p in ps:
             results[p] = self.logical_error_rate(p, params)
         return results
  
 if __name__ == "__main__":
-    d = 6
-    circuit = gen_qldpc_circuit((d, 0.001, 'Z'))
-    decoder = 'bplsd'
+    """Main entry point for the decoder-bench-rare-event-sim command."""
+    parser = argparse.ArgumentParser(description='Rare event simulation with a given QEC code and decoder.')
     
-    sim = RareEventSimulator(d, circuit, decoder)
-    results = sim.simulate([0.001, 0.0005, 0.0001, 0.000001, 0.00000001])
-    print('Simulated: ', results)
-    fig, ax = plt.subplot(1, 1)
-    ax.plot(results.keys(), results.values())
-    fig.savefig('test.png')
+    # Required arguments
+    parser.add_argument('--code', type=str, required=True, choices=['surface', 'qldpc', 'color', 'ls'],
+                        help='Type of quantum code; use "ls" for a Lattice Surgery dataset')
+    parser.add_argument('--basis', type=str, required=True, choices=['x', 'z'],
+                        help='Measurement basis (ignored for the color code); Used as the Lattice Surgery basis if code == "ls"')
+    parser.add_argument('--distance', '-d', type=int, required=True,
+                        help='Code distance')
+    parser.add_argument('--depolarization', '-p', type=float, required=True,
+                        help='Depolarization/error probability')
+    parser.add_argument('--decoder', type=str, required=True,
+                        help='Decoder to use (e.g.: "PyMatching", "Relay-BP", "MWPF", "BP-LSD", etc.)')
+    
+    # Optional arguments
+    parser.add_argument('--num_trials_per_weight', type=int, default=10_000,
+                        help='Number of trials to run per weight during spectrum estimation ( default: 10,000)')
+    parser.add_argument('--weights', type=int, default=None, nargs='+',
+                        help='List of weights to sample during spectrum estimation ( default: range(d, 20*d, 10) )')
+    parser.add_argument('--ps', type=float, default=[1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8],
+                        nargs='+',
+                        help='List of physical error rates to estimate logical error rates for (default: [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8])')
+    parser.add_argument('--w0', type=int, default=None,
+                        help='Fix w0 parameter during fitting (default: ceil(d/2) - 1)')
+    parser.add_argument('--decoder_params', type=str, default=None, 
+                      help='JSON string of decoder parameters, e.g. \'{"max_iter": 50}\'')
+    parser.add_argument('--decoder_dir', type=str, default=None,
+                      help='Directory containing custom decoder implementations')
+    
+    args = parser.parse_args()
+    
+    code = args.code.lower()
+    basis = args.basis.lower()
+    distance = args.distance
+    depolarization = args.depolarization
+    decoder = args.decoder
+    num_trials_per_weight = args.num_trials_per_weight
+    weights = args.weights
+    ps = args.ps
+    w0 = args.w0
+    
+    if args.decoder_dir:
+        num_loaded = DecoderRegistry.load_from_directory(args.decoder_dir)
+        print(f"Loaded {num_loaded} custom decoders from {args.decoder_dir}")
+    
+    kwargs = {}
+    if args.decoder_params:
+        kwargs = json.loads(args.decoder_params)
+        
+    kwargs['num_trials_per_weight'] = num_trials_per_weight
+    if weights is not None:
+        kwargs['weights'] = weights
+    if w0 is not None:
+        kwargs['w0'] = w0
+    
+    circuit = None
+    if code == 'surface':
+        circuit = gen_surface_circuit((distance, depolarization, basis))
+    elif code == 'qldpc':
+        circuit = gen_qldpc_circuit((distance, depolarization, basis))
+    elif code == 'color':
+        circuit = gen_color_circuit((distance, depolarization))
+    elif code == 'ls':
+        circuit = gen_lattice_surgery_circuit((distance, depolarization, basis))
+    else:
+        raise ValueError(f"Unsupported code type: {code}")
+    
+    sim = RareEventSimulator(distance, circuit, decoder, **kwargs)
+    results = sim.simulate(ps)
+    
+    results_dir = "./results"
+    os.makedirs(results_dir, exist_ok=True)
+    csv_path = os.path.join(results_dir, "rare_event_simulation_results.csv")
+    
+    file_exists = os.path.isfile(csv_path)
+    
+    with open(csv_path, mode='a', newline='') as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(['code', 'decoder', 'p', 'P(p)'])
+        for p, logical_error_rate in results.items():
+            writer.writerow([f'{code}_{distance}_{basis}_circuit', decoder, p, logical_error_rate])
