@@ -62,8 +62,10 @@ def gen_qldpc_circuit(input:Tuple[int, float, str]) -> stim.Circuit:
         code, A_list, B_list = create_bivariate_bicycle_codes(9, 6, [3], [1,2], [1,2], [3])
     elif d == 12:
         code, A_list, B_list = create_bivariate_bicycle_codes(12, 6, [3], [1,2], [1,2], [3])
+    elif d == 18:
+        code, A_list, B_list = create_bivariate_bicycle_codes(12, 12, [3], [2,7], [1,2], [3])
     else:
-        raise ValueError('Invalid distance. Only 6, 10, and 12 are supported.')
+        raise ValueError('Invalid distance. Only 6, 10, 12, and 18 are supported.')
     circuit = build_circuit(code, A_list, B_list, p=0,
                             num_repeat=d, use_both=False, 
                             z_basis=(basis == 'z'))

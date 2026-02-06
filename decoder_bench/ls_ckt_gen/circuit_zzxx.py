@@ -125,7 +125,7 @@ class circuit(circuit_parser, gate_lib, stim_integ):
     
     def assign_decoder_latency(self):
         latencies = {3:70, 5:60, 7:60, 9:70, 11:110, 13:160, 15:250, 17:370} # From Riverlane
-        self.decoder_latency = latencies[self.d]
+        self.decoder_latency = latencies.get(self.d, 500)
         return
     
     def get_patch_layout(self) -> None:

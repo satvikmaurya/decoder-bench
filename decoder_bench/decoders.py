@@ -1,7 +1,9 @@
 try:
     from .sampler import Decoder, DecoderRegistry, DecoderState
+    from .common.dem_matrices import detector_error_model_to_check_matrices
 except ImportError:
     from sampler import Decoder, DecoderRegistry, DecoderState
+    from common.dem_matrices import detector_error_model_to_check_matrices
 import numpy as np
 from scipy.sparse import csr_matrix
 
@@ -78,7 +80,19 @@ class PyMatchingDecoderImpl(Decoder):
     def __init__(self, state: DecoderState, **kwargs):
         """Initialize the PyMatching decoder"""
         import pymatching
-        self.decoder = pymatching.Matching.from_stim_circuit(circuit=state.circuit)
+        dem = state.circuit.detector_error_model(decompose_errors=True)
+        dem_matrices = detector_error_model_to_check_matrices(dem)
+        edge_priors = dem_matrices.hyperedge_to_edge_matrix @ dem_matrices.priors
+        eps = 1e-8
+        edge_priors[edge_priors > 1 - eps] = 1 - eps
+        edge_priors[edge_priors < eps] = eps
+        edge_weights = np.log((1 - edge_priors) / edge_priors)
+
+        self.decoder = pymatching.Matching.from_check_matrix(
+            check_matrix=dem_matrices.edge_check_matrix, 
+            weights=edge_weights,
+            faults_matrix=dem_matrices.edge_observables_matrix
+        )
     
     def decode(self, syndrome: np.ndarray) -> np.ndarray:
         """Decode a single syndrome"""
@@ -90,7 +104,8 @@ class PyMatchingDecoderImpl(Decoder):
     
     def verify(self, prediction: np.ndarray, observable: np.ndarray) -> bool:
         """Verify if the prediction matches the observable"""
-        return not np.any((prediction + observable) % 2)
+        error_prediction = (self.obs_matrix.toarray() @ prediction) % 2
+        return not np.any((error_prediction + observable) % 2)
     
 @DecoderRegistry.register(name="relay-bp")
 class RelayBPDecoderImpl(Decoder):
@@ -140,7 +155,7 @@ class MWPFDecoderImpl(Decoder):
             "cluster_node_limit":  kwargs.get('cluster_node_limit', 50),  
             "timeout": kwargs.get('timeout', 3.0),  
         }
-        weighted_edges: list[mwpf.HyperEdge] = [
+        weighted_edges: list = [
             mwpf.HyperEdge(
                 state.check_matrix.getcol(i).nonzero()[0],
                 int(np.log((1 - state.priors[i])/state.priors[i]))

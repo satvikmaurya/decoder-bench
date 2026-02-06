@@ -18,6 +18,7 @@ try:
                             gen_surface_circuit)
     import decoders
     from .common.build_circuit import dem_to_check_matrices
+    from .common.dem_matrices import detector_error_model_to_check_matrices
 except ImportError:
     from sampler import DecoderRegistry, DecoderState
     from generator import (gen_qldpc_circuit, 
@@ -26,6 +27,7 @@ except ImportError:
                             gen_surface_circuit)
     import decoders  # noqa: F401
     from common.build_circuit import dem_to_check_matrices
+    from common.dem_matrices import detector_error_model_to_check_matrices
 
 @dataclass
 class ExpandedFaultModel:
@@ -75,10 +77,19 @@ class RareEventSimulator:
     def __init__(self, d:int, circuit:stim.Circuit, decoder:str, **kwargs):
         self.circuit = circuit
         self.d = d
+        
+        decompose_errors = kwargs.get('decompose_errors', False)
 
-        self.dem = circuit.detector_error_model()
+        self.dem = circuit.detector_error_model(decompose_errors=decompose_errors)
         self.H, self.A, priors = dem_to_check_matrices(self.dem,
                                                        return_col_dict=False)
+        if decompose_errors:
+            obj = detector_error_model_to_check_matrices(self.dem)
+            self.H = obj.edge_check_matrix
+            self.A = obj.edge_observables_matrix
+            ps_h = 1 / (1 + np.exp(obj.priors))
+            priors = obj.hyperedge_to_edge_matrix @ ps_h
+            
         
         # Decoder init
         state = DecoderState(check_matrix=self.H,
@@ -144,6 +155,8 @@ class RareEventSimulator:
         """
         syndrome = self.model.H @ e % 2
         e_hat = self.decoder.decode(syndrome)
+        
+        print(f'len of e_hat: {len(e_hat)}, weight of e: {np.sum(e)}, weight of e_hat: {np.sum(e_hat)}')
 
         logical_true = self.model.A @ e % 2
         logical_hat  = self.model.A @ e_hat % 2
@@ -183,7 +196,7 @@ class RareEventSimulator:
                 ) for wi in w
             ])
 
-        p0 = [fs[0], 1.0, 2.0, ws[len(ws)//2]]
+        p0 = [fs[0], 1.0, 2.0, ws[len(ws) // 2]]
 
         popt, _ = curve_fit(
             fit_func,
@@ -260,8 +273,6 @@ if __name__ == "__main__":
                         help='Measurement basis (ignored for the color code); Used as the Lattice Surgery basis if code == "ls"')
     parser.add_argument('--distance', '-d', type=int, required=True,
                         help='Code distance')
-    parser.add_argument('--depolarization', '-p', type=float, required=True,
-                        help='Depolarization/error probability')
     parser.add_argument('--decoder', type=str, required=True,
                         help='Decoder to use (e.g.: "PyMatching", "Relay-BP", "MWPF", "BP-LSD", etc.)')
     
@@ -270,9 +281,9 @@ if __name__ == "__main__":
                         help='Number of trials to run per weight during spectrum estimation ( default: 10,000)')
     parser.add_argument('--weights', type=int, default=None, nargs='+',
                         help='List of weights to sample during spectrum estimation ( default: range(d, 20*d, 10) )')
-    parser.add_argument('--ps', type=float, default=[1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8],
+    parser.add_argument('--ps', type=float, default=[1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
                         nargs='+',
-                        help='List of physical error rates to estimate logical error rates for (default: [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8])')
+                        help='List of physical error rates to estimate logical error rates for (default: [1e-1, 1e-2, 1e-3, 1e-4, 1e-5])')
     parser.add_argument('--w0', type=int, default=None,
                         help='Fix w0 parameter during fitting (default: ceil(d/2) - 1)')
     parser.add_argument('--decoder_params', type=str, default=None, 
@@ -285,7 +296,7 @@ if __name__ == "__main__":
     code = args.code.lower()
     basis = args.basis.lower()
     distance = args.distance
-    depolarization = args.depolarization
+    depolarization = 1e-3 # Fixed for initial circuit construction
     decoder = args.decoder
     num_trials_per_weight = args.num_trials_per_weight
     weights = args.weights
@@ -306,6 +317,10 @@ if __name__ == "__main__":
     if w0 is not None:
         kwargs['w0'] = w0
     
+    if code == 'ls' or code == 'ls':
+        if decoder == 'pymatching':
+            kwargs['decompose_errors'] = True
+    
     circuit = None
     if code == 'surface':
         circuit = gen_surface_circuit((distance, depolarization, basis))
@@ -319,7 +334,12 @@ if __name__ == "__main__":
         raise ValueError(f"Unsupported code type: {code}")
     
     sim = RareEventSimulator(distance, circuit, decoder, **kwargs)
-    results = sim.simulate(ps)
+    try:
+        results = sim.simulate(ps)
+    except Exception as e:
+        print(f"Simulation failed: {e}")
+        print(code, basis, distance, decoder)
+        exit(-1)
     
     results_dir = "./results"
     os.makedirs(results_dir, exist_ok=True)
